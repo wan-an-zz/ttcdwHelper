@@ -8,3 +8,5 @@
 - 登录课程界面（https://www.ttcdw.cn/p/uc/myClassroom/*）
 - 运行脚本并切换至课程界面
 - 等待完成即可
+
+~~另：技术含量真的很低，补药嘲笑我QAQ~~
