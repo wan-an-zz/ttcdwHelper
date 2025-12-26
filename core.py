@@ -34,11 +34,13 @@ class Core:
                     try:
                         position_of_study_button = pyautogui.locateAllOnScreen(study_button_picture, confidence=0.9, grayscale=True)
                     except: 
-                        position_of_study_button = pyautogui.locateAllOnScreen(study_button_picture, confidence=0.9, grayscale=True)
-                    time.sleep(2)
+                        logging.info("No study button found yet, retrying...")
+                        time.sleep(1)
+                        continue
+                        
 
                 #向下滚动页面，确保所有课程都加载出来
-                pyautogui.scroll(-500)
+                pyautogui.scroll(-1500)
                 time.sleep(2)
 
                 #读取学习按钮和进度条的位置
@@ -51,7 +53,7 @@ class Core:
                 #仍在选择课程页面，则判定是否可翻页
                 if not self.is_on_class_page:
                     logging.info("No unstudied courses found on this page.Trying to turn the page...")
-                    pyautogui.scroll(-500)
+                    pyautogui.scroll(-1500)
                     time.sleep(1)
                     try:
                         position_of_turn_page_button = pyautogui.locateOnScreen(turn_page_button_picture, confidence=0.9, grayscale=True)
@@ -113,7 +115,7 @@ class Core:
 
         try:
             #检查是否在课程页面(是否找到爱心)
-            pyautogui.scroll(500)
+            pyautogui.scroll(1000)
             pyautogui.locateOnScreen(on_class_page_picture, confidence=0.6, grayscale=True)
             self.is_on_class_page = True
             logging.info("On class page.")
@@ -127,7 +129,7 @@ class Core:
         
         #每隔20分钟检测课程是否播放完毕
         while is_class_finished is False:
-            time.sleep(1200)
+            time.sleep(10) #10分钟
             try:
                 pyautogui.locateOnScreen(is_class_finished_picture, confidence=0.5, grayscale=True)
                 is_class_finished = True
@@ -143,44 +145,40 @@ class Core:
     def return_to_main_page(self):
         #返回主页面
 
-        tab_bar_picture = self.current_dir + '\\image\\tab bar.png'
-        main_page_tab_picture = self.current_dir + '\\image\\main page tab.png'
         main_page_picture = self.current_dir + '\\image\\main page.png'
-
         logging.info("Returning to main page...")
 
-        #寻找并打开标签栏
+        #关闭当前课程页面
         try:
-            tab_bar_position = pyautogui.locateOnScreen(tab_bar_picture, confidence=0.9, grayscale=True)
-            logging.info("Found tab bar.")
-            pyautogui.moveTo(tab_bar_position.left + 5, tab_bar_position.top + 5, duration=0.5)
+            pyautogui.hotkey('ctrl', 'w')
+            logging.info("Closed current class page.")
+            time.sleep(2)
         except:
-            logging.error("Tab bar not found.")
-            self.stop_program = True
-            return
-        time.sleep(2)
-
-        #点击主页面标签
-        try:
-            main_page_tab_position = pyautogui.locateOnScreen(main_page_tab_picture, confidence=0.75, grayscale=True)
-            logging.info("Found main page tab.")
-            pyautogui.click(main_page_tab_position.left + 5, main_page_tab_position.top + 5, duration=0.5)
-        except:
-            logging.error("Main page tab not found.")
+            logging.error("Failed to close current class page.")
             self.stop_program = True
             return
         
         #确认位于主页面
         try:
+            pyautogui.scroll(1500)
             pyautogui.locateOnScreen(main_page_picture, confidence=0.9, grayscale=True)
             logging.info("Returned to main page successfully.")
-            self.on_class_page = False
+            self.is_on_class_page = False
         except:
             logging.error("Failed to return to main page.")
             self.stop_program = True
             return
-        
-        pyautogui.moveTo(500, 500, duration=0.5)
+
+        #刷新页面
+        try:
+            pyautogui.hotkey('ctrl', 'r')
+            logging.info("Refreshed main page.")
+            time.sleep(2)       
+        except:
+            logging.error("Failed to refresh main page.")
+            self.stop_program = True
+            return
+
 
 
 class TkHandler(logging.Handler):
