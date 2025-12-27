@@ -14,6 +14,8 @@ class Core:
     is_on_class_page = False
     all_class_finished = False
     stop_program = False
+    stop_searching_counter = 0 #防止死循环，尝试翻页10次后停止搜索
+    start_professional_class = False  #是否进入专业课
 
 
     def find_unstudy_class(self):
@@ -21,13 +23,30 @@ class Core:
         study_button_picture = self.current_dir + '\\image\\study button.png'
         progress_bar_picture = self.current_dir + '\\image\\100 percent progress bar.png'
         turn_page_button_picture = self.current_dir + '\\image\\can change page.png'
+        professional_class_picture = self.current_dir + '\\image\\professional class.png'
         position_of_study_button = None
         position_of_progress_bar = None
         position_of_turn_page_button = None
+        
 
-        while not self.is_on_class_page:
+        while not self.is_on_class_page and self.stop_searching_counter <= 10:
+            #判断是否进入专业课
+            if self.start_professional_class:
+                logging.info("Starting professional class mode.")
+                pyautogui.scroll(1500)
+                time.sleep(2)
+                try:
+                    position_of_professional_class = pyautogui.locateOnScreen(professional_class_picture, confidence=0.9)
+                    pyautogui.click(position_of_professional_class.left + 10, position_of_professional_class.top + 10, duration=0.5)
+                except:
+                    logging.info("No professional class found. All courses may have been completed.")
+                    self.start_professional_class = False
+                    self.all_class_finished = True
+                    return
+                
+
             try:
-                #检查是否在课程页面(是否找到学习按钮)
+                #检查是否在选择课程页面(是否找到学习按钮)
                 while position_of_study_button is None:
                     logging.info("Searching for unstudied courses...")
                     time.sleep(2)
@@ -50,29 +69,61 @@ class Core:
                 #寻找未完成的课程并进入课程
                 self.is_on_class_page = self.find_and_click_unstudy_class(position_of_study_button, position_of_progress_bar)
 
-                #仍在选择课程页面，则判定是否可翻页
+                #仍在选择课程页面，则判定是否可翻页或是否进入专业课
                 if not self.is_on_class_page:
                     logging.info("No unstudied courses found on this page.Trying to turn the page...")
                     pyautogui.scroll(-1500)
                     time.sleep(1)
+
+                    #尝试翻页
                     try:
-                        position_of_turn_page_button = pyautogui.locateOnScreen(turn_page_button_picture, confidence=0.9, grayscale=True)
+                        position_of_turn_page_button = pyautogui.locateOnScreen(turn_page_button_picture, confidence=0.9)
                         pyautogui.click(position_of_turn_page_button.left + 10, position_of_turn_page_button.top + 10, duration=0.5)
-                        logging.info("Turned to the next page.")
+                        pyautogui.moveTo(100, 100, duration=0.5)  #移动鼠标避免遮挡
+                        self.stop_searching_counter += 1
+                        logging.info(f"Turned to the next page. stop_searching_counter: {self.stop_searching_counter}")
+
+                    # 若不可翻页则判断是否进入专业课
                     except:
-                        logging.info("No turn page button found. Reached the end of course list. All courses may have been completed.")
-                        position_of_turn_page_button = None
+                        #所有课程结束
+                        if self.start_professional_class:
+                            logging.info("No turn page button found. Reached the end of course list. All courses may have been completed.")
+                            position_of_turn_page_button = None
+                            self.stop_searching_counter = 0
+                            self.all_class_finished = True
+                            return
+                        #进入专业课
+                        else:
+                            logging.info("Entering professional class to search for more courses...")
+                            self.stop_searching_counter = 0
+                            self.start_professional_class = True
+                            continue
+
+                    # 超过最大翻页次数且不位于专业课选择课程页面内，尝试进入专业课    
+                    if self.stop_searching_counter >= 10 and not self.start_professional_class:
+                        logging.info("Maximum page turns reached. Attempting to enter professional class mode...")
+                        self.start_professional_class = True
+                        self.stop_searching_counter = 0
+                        continue
+                    # 超过最大翻页次数且已位于专业课选择课程页面内，所有课程结束
+                    elif self.stop_searching_counter >= 10 and self.start_professional_class:
+                        logging.info("Maximum page turns reached in professional class mode. Stopping search.")
                         self.all_class_finished = True
                         return
-                     
+
+                #在课程页面
                 else:
                     logging.info("Entering unstudied course page...")
+                    self.stop_searching_counter = 0
                     self.on_class_page()
+                    return
                     
             except Exception as e:
                 logging.error(f"Error occurred while finding unstudied class: {e}")
                 self.stop_program = True
                 return
+            
+        logging.info("Reached maximum page turns without finding unstudied courses. Stopping search.")
 
     def find_and_click_unstudy_class(self, position_of_study_button, position_of_progress_bar):
 
@@ -129,7 +180,7 @@ class Core:
         
         #每隔20分钟检测课程是否播放完毕
         while is_class_finished is False:
-            time.sleep(10) #10分钟
+            time.sleep(1000) #10分钟
             try:
                 pyautogui.locateOnScreen(is_class_finished_picture, confidence=0.5, grayscale=True)
                 is_class_finished = True
